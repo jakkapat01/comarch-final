@@ -1,5 +1,8 @@
 const $=s=>document.querySelector(s);
 let current=0,completed=[];
+let quizAnswers={},quizGraded=false;
+try{const saved=JSON.parse(localStorage.getItem('comarch-quiz-v1')||'{}');if(saved.answers&&typeof saved.answers==='object')questions.forEach((q,i)=>{const a=saved.answers[i];if(Number.isInteger(a)&&a>=0&&a<q[1].length)quizAnswers[i]=a;});quizGraded=saved.graded===true;}catch{}
+function saveQuiz(){try{localStorage.setItem('comarch-quiz-v1',JSON.stringify({answers:quizAnswers,graded:quizGraded}));}catch{}}
 try{const stored=JSON.parse(localStorage.getItem('comarch-completed-v1')||'[]');if(Array.isArray(stored))completed=[...new Set(stored.filter(n=>Number.isInteger(n)&&n>=0&&n<chapters.length))];}catch{}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function navigation(){
@@ -32,13 +35,19 @@ function pipeline(){
  $('#pipeGrid').innerHTML=`<table class="pipe-table"><thead><tr><th>คำสั่ง / clock</th>${Array.from({length:9},(_,i)=>`<th>${i+1}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr><th>${r.name}</th>${Array.from({length:9},(_,i)=>`<td class="${r.cells[i]==='STALL'?'pipe-stall ':''}${i+1===clock?'pipe-active':i+1<clock?'pipe-past':''}">${r.cells[i]||'·'}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 }
 function setupQuiz(){
- $('#quiz').innerHTML=questions.map((q,i)=>`<fieldset class="q"><legend>${i+1}. ${esc(q[0])}</legend>${q[1].map((x,j)=>`<label><input type="radio" name="q${i}" value="${j}">${esc(x)}</label>`).join('')}<div id="feedback-${i}" hidden></div></fieldset>`).join('');
- $('#grade').onclick=()=>{let score=0,answered=0;questions.forEach((q,i)=>{const a=document.querySelector(`input[name=q${i}]:checked`),ok=a&&Number(a.value)===q[2];if(a)answered++;if(ok)score++;const f=$(`#feedback-${i}`);f.hidden=false;f.className=`feedback ${ok?'':'wrong'}`;f.innerHTML=`<b>${ok?'✓ ถูกต้อง':a?'ยังไม่ถูก':'ยังไม่ได้ตอบ'}</b> · ${esc(q[3])} <a href="#chapter-${q[4]}">ทบทวนบท ${q[4]}</a>`;});$('#quizScore').textContent=`ได้ ${score} / ${questions.length} คะแนน · ตอบแล้ว ${answered} ข้อ`;};
- $('#retry').onclick=()=>{setupQuiz();$('#quizScore').textContent='';$('#quiz').scrollIntoView({behavior:'smooth'});};
+ $('#quiz').innerHTML=questions.map((q,i)=>`<fieldset class="q"><legend>${i+1}. ${esc(q[0])}</legend>${q[1].map((x,j)=>`<label><input type="radio" name="q${i}" value="${j}" ${quizAnswers[i]===j?'checked':''}>${esc(x)}</label>`).join('')}<div id="feedback-${i}" hidden></div></fieldset>`).join('');
+ $('#quiz').onchange=e=>{if(e.target.type!=='radio')return;quizAnswers[Number(e.target.name.slice(1))]=Number(e.target.value);saveQuiz();if(quizGraded)gradeQuiz();};
+ $('#grade').onclick=()=>{quizGraded=true;saveQuiz();gradeQuiz();$('#quizScore').scrollIntoView({behavior:'smooth',block:'center'});};
+ $('#retry').onclick=()=>{quizAnswers={};quizGraded=false;saveQuiz();setupQuiz();$('#quiz').scrollIntoView({behavior:'smooth'});};
+ $('#quizScore').textContent='';if(quizGraded)gradeQuiz();
 }
+function gradeQuiz(){let score=0,answered=0;const review=new Set();questions.forEach((q,i)=>{const a=quizAnswers[i],ok=a===q[2];if(a!==undefined)answered++;if(ok)score++;else review.add(q[4]);const f=$(`#feedback-${i}`);f.hidden=false;f.className=`feedback ${ok?'':'wrong'}`;f.innerHTML=`<b>${ok?'✓ ถูกต้อง':a!==undefined?'ยังไม่ถูก':'ยังไม่ได้ตอบ'}</b> · ${esc(q[3])} <a href="#chapter-${q[4]}">ทบทวนบท ${q[4]}</a>`;});$('#quizScore').innerHTML=`ได้ ${score} / ${questions.length} คะแนน · ตอบแล้ว ${answered} ข้อ<div class="review-links">${review.size?'แนะนำให้ทบทวน: '+[...review].map(i=>`<a href="#chapter-${i}">${chapters[i].title}</a>`).join(' '):'ตอบถูกครบแล้ว ลองทำข้อสอบเดิมด้วยตัวเองโดยปิดเฉลย'}</div><small>คำตอบและผลตรวจบันทึกไว้ในเบราว์เซอร์นี้ กลับไปอ่านบทอื่นแล้วมาทำต่อได้</small>`;}
+function searchLessons(){const query=$('#searchInput').value.trim().toLocaleLowerCase(),results=$('#searchResults');if(!query){results.hidden=true;results.innerHTML='';return;}const matches=chapters.map((c,i)=>{const el=document.createElement('div');el.innerHTML=c.body;return {i,c,text:el.textContent.replace(/\s+/g,' ')};}).filter(x=>(x.c.title+' '+x.c.intro+' '+x.text).toLocaleLowerCase().includes(query));results.hidden=false;results.innerHTML=matches.length?matches.map(x=>{const at=x.text.toLocaleLowerCase().indexOf(query),start=Math.max(0,at-35);return `<a href="#chapter-${x.i}"><b>${x.c.title}</b><small>${esc(x.text.slice(start,start+140))}…</small></a>`;}).join(''):'<p>ไม่พบหัวข้อนี้ ลองค้น “overflow”, “lw”, “srl” หรือ “hazard”</p>';}
+$('#searchInput').addEventListener('input',searchLessons);
+$('#searchResults').addEventListener('click',e=>{if(e.target.closest('a')){$('#searchInput').value='';$('#searchResults').hidden=true;$('#lesson').scrollIntoView({behavior:'auto'});}});
 $('#complete').onchange=()=>{completed=completed.filter(i=>i!==current);if($('#complete').checked)completed.push(current);try{localStorage.setItem('comarch-completed-v1',JSON.stringify(completed));}catch{}navigation();};
 $('#resetProgress').onclick=()=>{completed=[];try{localStorage.removeItem('comarch-completed-v1');}catch{}$('#complete').checked=false;navigation();};
 $('#prev').onclick=()=>{if(current>0)location.hash=`chapter-${current-1}`;};$('#next').onclick=()=>{if(current<chapters.length-1)location.hash=`chapter-${current+1}`;};
 $('#menu').onclick=()=>{$('#menu').setAttribute('aria-expanded',String($('#sidebar').classList.toggle('open')));};
 $('#print').onclick=()=>{const closed=[...document.querySelectorAll('details:not([open])')];closed.forEach(d=>d.open=true);window.print();closed.forEach(d=>d.open=false);};
-window.addEventListener('hashchange',()=>render(true));render(Boolean(location.hash));
+window.addEventListener('hashchange',()=>{if(location.hash!=='#lesson')render(true);});render(Boolean(location.hash));

@@ -8,3 +8,4 @@
 @media print{header,aside,.hero,footer,.lesson-bottom,.lesson-top button,.lab,#grade,#retry{display:none!important}.layout{display:block;padding:0}article{border:0;padding:0}body{font-size:12pt;background:white;color:black}details{break-inside:avoid}.table-wrap{overflow:visible}table{font-size:8pt}th,td{padding:5px}.q{break-inside:avoid}.feedback{display:block!important}.circuit svg{min-width:0}}
 
 @media(min-width:851px){aside{max-height:calc(100vh - 130px);overflow-y:auto;padding-right:5px;scrollbar-width:thin}}
+.exam-figure{margin:24px 0;padding:15px;border:1px solid var(--line);border-radius:12px;background:white}.exam-figure img{display:block;width:100%;height:auto}.exam-figure a{display:block}.exam-figure figcaption{font-size:12px;line-height:1.8;color:var(--muted);padding-top:12px}.detail-figure{max-width:560px;margin-left:auto;margin-right:auto}
